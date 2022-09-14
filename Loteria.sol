@@ -7,7 +7,7 @@ pragma solidity ^0.8.0;
 
 
 /**
- * @dev String operations.-Mirar oppenzeppelin y chainlink
+ * @dev String operations.
  */
 library Strings {
     bytes16 private constant _HEX_SYMBOLS = "0123456789abcdef";
@@ -15,7 +15,7 @@ library Strings {
     /**
      * @dev Converts a `uint256` to its ASCII `string` decimal representation.
      */
-    function toString(uint256 value) internal pure returns (string memory) {//Código base
+    function toString(uint256 value) internal pure returns (string memory) {
         // Inspired by OraclizeAPI's implementation - MIT licence
         // https://github.com/oraclize/ethereum-api/blob/b42146b063c7d6ee1358846c198246239e9360e8/oraclizeAPI_0.4.25.sol
 
@@ -90,11 +90,10 @@ library Address {
      *  - an address where a contract lived, but was destroyed
      * ====
      */
-      // This method relies on extcodesize, which returns 0 for contracts in
+    function isContract(address account) internal view returns (bool) {
+        // This method relies on extcodesize, which returns 0 for contracts in
         // construction, since the code is only stored at the end of the
         // constructor execution.
-    function isContract(address account) internal view returns (bool) {
-       
 
         uint256 size;
         assembly {
@@ -336,7 +335,7 @@ interface IERC1155Receiver is IERC165 {
         @param values An array containing amounts of each token being transferred (order and length must match ids array)
         @param data Additional data with no specified format
         @return `bytes4(keccak256("onERC1155BatchReceived(address,address,uint256[],uint256[],bytes)"))` if transfer is allowed
-    */ 
+    */
     function onERC1155BatchReceived(
         address operator,
         address from,
@@ -1031,7 +1030,7 @@ abstract contract Ownable is Context {
     }
 }
 
-interface AggregatorV3Interface { // Para coger el valor en dolares. Oráculo que coge la conversión de dolar a ETH
+interface AggregatorV3Interface {
   function decimals() external view returns (uint8);
 
   function description() external view returns (string memory);
@@ -1063,15 +1062,15 @@ interface AggregatorV3Interface { // Para coger el valor en dolares. Oráculo qu
       uint80 answeredInRound
     );
 }
-////////////////////// Lo anterior viene de librerías 
-contract Lottery is ERC1155, Ownable { // Ownable, para QUE TENGA UN DUEÑO EL CONTRACT
+
+contract Lottery is ERC1155, Ownable {
     using Strings for uint256;
 
-    //stores the imageUri for each lottery ticket. Para poder modificar cada NFT
+    //stores the imageUri for each lottery ticket
     mapping(uint => string) public typeToURI;
 
-    //stores the amount minted for each lottery. Para tener en cuenta cuantos boletos se han minteado y consecuentemente el premio variará.
-    mapping(uint => uint256) public typeToAmountMinted;
+    //stores the amount minted for each lottery
+    mapping(uint => uint256) private _typeToAmountMinted;
 
     //stores the winner for each lottery
     mapping(uint => address) public typeToWinner;
@@ -1082,10 +1081,10 @@ contract Lottery is ERC1155, Ownable { // Ownable, para QUE TENGA UN DUEÑO EL C
     //price of each lottery ticket
     uint256 public ticketPrice = 1200000000; //12$ //price in USD plus 8 zeros (00000000)
 
-    //the percentage taken from the reward of each lottery. Lo que nos llevamos nosotros
+    //the percentage taken from the reward of each lottery 
     uint public feePercentage = 10;
 
-    enum ContractState { // Para poder abrir o cerrar la lotería cuando queramos
+    enum ContractState {
         OFF,
         ON
     }
@@ -1096,15 +1095,15 @@ contract Lottery is ERC1155, Ownable { // Ownable, para QUE TENGA UN DUEÑO EL C
     address[] public minters;
 
     constructor() {
-        //Initialozing the first lottery
+       
         nLottery += 1;
-        typeToURI[nLottery] = "ipfs://QmRegAu9doxopUQAodKDPBT96kjpEd75rfLH5oohYmnBhg/"; //Referencia al metadato al NFT. Dar imagen al NFT.
+        typeToURI[nLottery] = "ipfs://QmRegAu9doxopUQAodKDPBT96kjpEd75rfLH5oohYmnBhg/";
 
-        priceFeed = AggregatorV3Interface(0x8A753747A1Fa494EC906cE90E9f37563A8AF630e); //De donde cogemos la info de ETH a $
+        priceFeed = AggregatorV3Interface(0x8A753747A1Fa494EC906cE90E9f37563A8AF630e); 
 
     }
 
-    receive() payable external { //Para queno se quede estancado el dinero en el contrato si alguien lo mete sin querer
+    receive() payable external {
         _withdraw(payable(owner()), msg.value);
     }
     fallback() payable external {
@@ -1115,7 +1114,7 @@ contract Lottery is ERC1155, Ownable { // Ownable, para QUE TENGA UN DUEÑO EL C
      * Do not allow calls from other contracts.
      */
     modifier noBots() {
-        require(msg.sender == tx.origin, "No bots!"); // Regla bots. Que otros contratos no interacciones con este
+        require(msg.sender == tx.origin, "No bots!");
         _;
     }
 
@@ -1138,7 +1137,7 @@ contract Lottery is ERC1155, Ownable { // Ownable, para QUE TENGA UN DUEÑO EL C
     /**
      * Get the current price of eth
      */
-    function changePriceFeed(address newFeed) public onlyOwner { //Ligado al cambio de ETH a $
+    function changePriceFeed(address newFeed) public onlyOwner {
         priceFeed = AggregatorV3Interface(newFeed);
     }
 
@@ -1149,22 +1148,22 @@ contract Lottery is ERC1155, Ownable { // Ownable, para QUE TENGA UN DUEÑO EL C
 
     function getPriceETH() public view returns(uint256) {
           int price = getETHtoUSD();
-          return (ticketPrice * 1000000000000000000) / uint256(price); //Por como te pasan el ETH y hacer la conversión 
+          return (ticketPrice * 1000000000000000000) / uint256(price);
     }
 
     function mint(address _to, uint _id, uint _amount) external payable isContractState(ContractState.ON) correctValue(getPriceETH() * _amount) noBots() {
-        require(_id == nLottery, "Invalid Lottery ID!"); //nlottery cantidad loterías que llevamos
-        require(typeToWinner[_id] == address(0), "This lottery is closed!"); //Que no haya ganador ya
-        for (uint i; i < _amount; i++) { //Lista de ids de participantes 
+        require(_id == nLottery, "Invalid Lottery ID!");
+        require(typeToWinner[_id] == address(0), "This lottery is closed!");
+        for (uint i; i < _amount; i++) {
             minters.push(_to);
         }
-        typeToAmountMinted[nLottery] += _amount;
+        _typeToAmountMinted[nLottery] += _amount;
         _mint(_to, _id, _amount, "");
     }
 
     function mintReserved(uint256[] memory ids, uint256[] memory amounts) external onlyOwner {
         _mintBatch(owner(), ids, amounts, "");
-    } //Por si quieres mintear boletos gratuitamente
+    }
 
     /**
      * Set contract state.
@@ -1192,12 +1191,10 @@ contract Lottery is ERC1155, Ownable { // Ownable, para QUE TENGA UN DUEÑO EL C
         delete minters;
     }
 
-    /**
-     * Pick a winner for the lottery.
-     */    
+        
     function pickWinner() external onlyOwner {
-        require(typeToWinner[nLottery] == address(0), "A winner has already been chosen for this lottery!"); //No address 0 address(0)
-        uint256 winnerNumber = randomLotteryNumber(typeToAmountMinted[nLottery]); //Cuantos NFTs que se han minteado
+        require(typeToWinner[nLottery] == address(0), "A winner has already been chosen for this lottery!");
+        uint256 winnerNumber = randomLotteryNumber(_typeToAmountMinted[nLottery]);
         address winner = minters[winnerNumber];
 
         uint256 balance = accountBalance();
@@ -1214,7 +1211,7 @@ contract Lottery is ERC1155, Ownable { // Ownable, para QUE TENGA UN DUEÑO EL C
             blockhash(block.number - 1),
             block.timestamp,
             _msgSender()
-        ))) % max;  //Sacar el resto entr una cantidad de numeros aleatorios
+        ))) % max;
     }
     
     function updateTypeUri(string memory newUri, uint typeId) external onlyOwner {
@@ -1225,7 +1222,7 @@ contract Lottery is ERC1155, Ownable { // Ownable, para QUE TENGA UN DUEÑO EL C
     function uri(uint256 typeId)public view override returns (string memory) {
         require(typeId <= nLottery, "URI requested for invalid token type");
         return typeToURI[typeId];
-    } //Visualización de cadda imagen de cada NFT
+    }
 
     //see the eth that this contract has
     function accountBalance() public view returns(uint256) {
@@ -1238,11 +1235,16 @@ contract Lottery is ERC1155, Ownable { // Ownable, para QUE TENGA UN DUEÑO EL C
         require(balance > 0, 'No Funds to withdraw, Balance is 0');
 
         _withdraw(payable(owner()), balance); 
-    } //En caso de tener que quitar el dinero del contrato
+    }
     
     //send the percentage of funds to a shareholder´s wallet
     function _withdraw(address payable account, uint256 amount) internal {
         (bool sent, ) = account.call{value: amount}("");
         require(sent, "Failed to send Ether");
-    } //Enviar dinero a alguien
+    } 
+
+    //getting the amount minted per lottery 
+    function getAmountMinted(uint _nLottery) public view returns(uint256) {
+        return _typeToAmountMinted[_nLottery];
+    }
 }
